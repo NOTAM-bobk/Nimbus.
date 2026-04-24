@@ -604,6 +604,54 @@
         let leafletMap = null;
         let mapMarker = null;
 
+        // --- Storage Utilities ---
+        function saveLocationData(lat, lon, name) {
+            sessionMemory.savedLat = lat;
+            sessionMemory.savedLon = lon;
+            sessionMemory.savedName = name;
+
+            // Save to LocalStorage
+            try {
+                localStorage.setItem('nimbus_lat', lat);
+                localStorage.setItem('nimbus_lon', lon);
+                localStorage.setItem('nimbus_name', name);
+            } catch (e) {
+                console.warn("LocalStorage unavailable");
+            }
+
+            // Save to Cookies (expires in 30 days)
+            const d = new Date();
+            d.setTime(d.getTime() + (30*24*60*60*1000));
+            const expires = "expires=" + d.toUTCString();
+            document.cookie = `nimbus_lat=${lat};${expires};path=/`;
+            document.cookie = `nimbus_lon=${lon};${expires};path=/`;
+            document.cookie = `nimbus_name=${encodeURIComponent(name)};${expires};path=/`;
+        }
+
+        function loadLocationData() {
+            // Try LocalStorage first
+            try {
+                const lat = localStorage.getItem('nimbus_lat');
+                const lon = localStorage.getItem('nimbus_lon');
+                const name = localStorage.getItem('nimbus_name');
+                if (lat && lon) return { lat: parseFloat(lat), lon: parseFloat(lon), name };
+            } catch (e) {}
+
+            // Try Cookies fallback
+            const decodedCookie = decodeURIComponent(document.cookie);
+            const ca = decodedCookie.split(';');
+            let lat = null, lon = null, name = null;
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i].trim();
+                if (c.indexOf("nimbus_lat=") === 0) lat = c.substring(11);
+                if (c.indexOf("nimbus_lon=") === 0) lon = c.substring(11);
+                if (c.indexOf("nimbus_name=") === 0) name = c.substring(12);
+            }
+            if (lat && lon) return { lat: parseFloat(lat), lon: parseFloat(lon), name };
+
+            return null;
+        }
+
         // --- PWA Setup ---
         (function initPWA() {
             const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#111"/><path d="M50 20 L80 80 L20 80 Z" fill="#4ecdc4"/></svg>`;
@@ -685,6 +733,13 @@
 
         // --- Initialization ---
         window.onload = () => {
+            const storedLoc = loadLocationData();
+            if (storedLoc) {
+                sessionMemory.savedLat = storedLoc.lat;
+                sessionMemory.savedLon = storedLoc.lon;
+                sessionMemory.savedName = storedLoc.name;
+            }
+
             applyAppearanceSettings();
             updateClock();
             setInterval(updateClock, 1000);
@@ -725,9 +780,7 @@
                         if (mapMarker) leafletMap.removeLayer(mapMarker);
                         mapMarker = L.marker([lat, lng]).addTo(leafletMap);
                         
-                        sessionMemory.savedLat = lat;
-                        sessionMemory.savedLon = lng;
-                        sessionMemory.savedName = "Map Location";
+                        saveLocationData(lat, lng, "Map Location");
                         
                         closeSettings();
                         fetchWeather(lat, lng);
@@ -755,7 +808,7 @@
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const { latitude, longitude } = position.coords;
-                        sessionMemory.savedName = "Current Location";
+                        saveLocationData(latitude, longitude, "Current Location");
                         fetchWeather(latitude, longitude);
                     },
                     (error) => {
@@ -778,9 +831,7 @@
                 const data = await res.json();
                 
                 if (data.latitude && data.longitude) {
-                    sessionMemory.savedLat = data.latitude;
-                    sessionMemory.savedLon = data.longitude;
-                    sessionMemory.savedName = `${data.city}, ${data.region}`;
+                    saveLocationData(data.latitude, data.longitude, `${data.city}, ${data.region}`);
                     fetchWeather(data.latitude, data.longitude);
                 } else {
                     throw new Error("Invalid IP Location data");
@@ -805,12 +856,12 @@
 
                 if (data && data.length > 0) {
                     const { lat, lon, display_name } = data[0];
-                    sessionMemory.savedLat = lat;
-                    sessionMemory.savedLon = lon;
                     
                     // Simplify name (take first two parts)
                     const nameParts = display_name.split(',');
-                    sessionMemory.savedName = nameParts.slice(0, 2).join(',').trim();
+                    const simplifiedName = nameParts.slice(0, 2).join(',').trim();
+                    
+                    saveLocationData(lat, lon, simplifiedName);
                     
                     closeSettings();
                     fetchWeather(lat, lon);
