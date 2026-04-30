@@ -284,7 +284,7 @@
 </main>
 
 <!-- Loading -->
-<div id="loading-state" class="fixed inset-0 flex flex-col items-center justify-center z-[70] bg-black/30 backdrop-blur-sm">
+<div id="loading-state" class="fixed inset-0 flex flex-col items-center justify-center z-[70] bg-black/30 backdrop-blur-sm hide">
     <div class="glass-brutal hero-card p-8 flex flex-col items-center gap-3">
         <i data-lucide="loader-2" class="w-10 h-10 animate-spin"></i>
         <p class="font-semibold text-base">Fetching forecast…</p>
@@ -441,87 +441,74 @@ function loadLocationData(){
 
 // ─── PWA ───────────────────────────────────────────────────────────────────
 (()=>{
-    // Full-detail cloud + sun icon at 512×512
-    const iconSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-        <!-- Background pill — deep navy -->
-        <rect width="512" height="512" rx="110" fill="#1a2845"/>
-        <!-- Sun rays (behind cloud) -->
-        <g transform="translate(340,148)" stroke="#FFD93D" stroke-width="14" stroke-linecap="round" opacity="0.9">
-            <line x1="0" y1="-52" x2="0" y2="-68"/>
-            <line x1="37" y1="-37" x2="48" y2="-48"/>
-            <line x1="52" y1="0" x2="68" y2="0"/>
-            <line x1="37" y1="37" x2="48" y2="48"/>
-            <line x1="0" y1="52" x2="0" y2="68"/>
-            <line x1="-37" y1="37" x2="-48" y2="48"/>
-            <line x1="-52" y1="0" x2="-68" y2="0"/>
-            <line x1="-37" y1="-37" x2="-48" y2="-48"/>
-        </g>
-        <!-- Sun disc -->
-        <circle cx="340" cy="148" r="42" fill="#FFD93D"/>
-        <!-- Main cloud body -->
-        <!-- large left bump -->
-        <circle cx="174" cy="294" r="74" fill="#e8f4fd"/>
-        <!-- centre-top bump (tallest) -->
-        <circle cx="256" cy="248" r="88" fill="#e8f4fd"/>
-        <!-- right bump -->
-        <circle cx="352" cy="288" r="66" fill="#e8f4fd"/>
-        <!-- fill base rectangle to flatten bottom -->
-        <rect x="108" y="294" width="302" height="80" fill="#e8f4fd"/>
-        <!-- cloud base rounded cap -->
-        <rect x="108" y="340" width="302" height="34" rx="17" fill="#d0e8f7"/>
-        <!-- subtle inner shading line -->
-        <ellipse cx="256" cy="374" rx="130" ry="8" fill="#b8d8ee" opacity="0.5"/>
-        <!-- Rain drops -->
-        <g fill="#74c8e0" opacity="0.9">
-            <ellipse cx="188" cy="418" rx="9" ry="14"/>
-            <ellipse cx="256" cy="430" rx="9" ry="14"/>
-            <ellipse cx="324" cy="418" rx="9" ry="14"/>
-        </g>
-    </svg>`;
+    try {
+        // SVG uses only ASCII-safe characters so btoa() works without encoding tricks
+        const iconSvg=[
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">',
+            '<rect width="512" height="512" rx="110" fill="#1a2845"/>',
+            '<g transform="translate(340,148)" stroke="#FFD93D" stroke-width="14" stroke-linecap="round" opacity="0.9">',
+            '<line x1="0" y1="-52" x2="0" y2="-68"/>',
+            '<line x1="37" y1="-37" x2="48" y2="-48"/>',
+            '<line x1="52" y1="0" x2="68" y2="0"/>',
+            '<line x1="37" y1="37" x2="48" y2="48"/>',
+            '<line x1="0" y1="52" x2="0" y2="68"/>',
+            '<line x1="-37" y1="37" x2="-48" y2="48"/>',
+            '<line x1="-52" y1="0" x2="-68" y2="0"/>',
+            '<line x1="-37" y1="-37" x2="-48" y2="-48"/>',
+            '</g>',
+            '<circle cx="340" cy="148" r="42" fill="#FFD93D"/>',
+            '<circle cx="174" cy="294" r="74" fill="#e8f4fd"/>',
+            '<circle cx="256" cy="248" r="88" fill="#e8f4fd"/>',
+            '<circle cx="352" cy="288" r="66" fill="#e8f4fd"/>',
+            '<rect x="108" y="294" width="302" height="80" fill="#e8f4fd"/>',
+            '<rect x="108" y="340" width="302" height="34" rx="17" fill="#d0e8f7"/>',
+            '<ellipse cx="256" cy="374" rx="130" ry="8" fill="#b8d8ee" opacity="0.5"/>',
+            '<g fill="#74c8e0" opacity="0.9">',
+            '<ellipse cx="188" cy="418" rx="9" ry="14"/>',
+            '<ellipse cx="256" cy="430" rx="9" ry="14"/>',
+            '<ellipse cx="324" cy="418" rx="9" ry="14"/>',
+            '</g>',
+            '</svg>'
+        ].join('');
 
-    const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
+        const iconUrl='data:image/svg+xml;base64,'+btoa(iconSvg);
 
-    // Inject favicon + apple-touch-icon into <head> once
-    const addLink=(rel,href,sz)=>{
-        const l=document.createElement('link'); l.rel=rel; l.href=href;
-        if(sz) l.setAttribute('sizes',sz);
-        document.head.appendChild(l);
-    };
-    addLink('icon', iconUrl);
-    addLink('apple-touch-icon', iconUrl, '180x180');
+        const addLink=(rel,href,sz)=>{
+            const l=document.createElement('link'); l.rel=rel; l.href=href;
+            if(sz) l.setAttribute('sizes',sz);
+            document.head.appendChild(l);
+        };
+        addLink('icon', iconUrl);
+        addLink('apple-touch-icon', iconUrl, '180x180');
 
-    const m={
-        name:"Nimbus Weather", short_name:"Nimbus",
-        description:"Beautiful, reactive local weather — powered by NWS & Open-Meteo",
-        display:"standalone", orientation:"portrait",
-        background_color:"#1a2845", theme_color:"#1a2845",
-        start_url:".",
-        icons:[
-            {src:iconUrl, sizes:"192x192", type:"image/svg+xml"},
-            {src:iconUrl, sizes:"512x512", type:"image/svg+xml", purpose:"any maskable"}
-        ]
-    };
-    document.head.appendChild(Object.assign(document.createElement('link'),{rel:'manifest',href:URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}))}));
-    if('serviceWorker' in navigator){
-        const sw=`
-            const CACHE='nimbus-v1';
-            const PRECACHE=['.'];
-            self.addEventListener('install',e=>e.waitUntil(
-                caches.open(CACHE).then(c=>c.addAll(PRECACHE)).then(()=>self.skipWaiting())
-            ));
-            self.addEventListener('activate',e=>e.waitUntil(
-                caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
-            ));
-            self.addEventListener('fetch',e=>e.respondWith(
-                fetch(e.request).then(r=>{
-                    const clone=r.clone();
-                    caches.open(CACHE).then(c=>c.put(e.request,clone));
-                    return r;
-                }).catch(()=>caches.match(e.request).then(r=>r||new Response('Offline')))
-            ));`;
-        navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'})));
+        const m={
+            name:"Nimbus Weather", short_name:"Nimbus",
+            description:"Beautiful reactive local weather",
+            display:"standalone", orientation:"portrait",
+            background_color:"#1a2845", theme_color:"#1a2845",
+            start_url:".",
+            icons:[
+                {src:iconUrl, sizes:"192x192", type:"image/svg+xml"},
+                {src:iconUrl, sizes:"512x512", type:"image/svg+xml", purpose:"any maskable"}
+            ]
+        };
+        document.head.appendChild(Object.assign(document.createElement('link'),{rel:'manifest',href:URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}))}));
+
+        if('serviceWorker' in navigator){
+            const sw=[
+                "self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));",
+                "self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));"
+            ].join('\n');
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'})));
+        }
+    } catch(e) {
+        console.warn('PWA init failed (non-fatal):', e);
     }
 })();
+
+// ─── Global error safety net — ensures loading never gets permanently stuck ──
+window.onerror = () => { showLoading(false); return false; };
+window.onunhandledrejection = () => { showLoading(false); };
 
 // ─── Init ──────────────────────────────────────────────────────────────────
 window.onload=()=>{
