@@ -1089,6 +1089,28 @@ function showRunInsights(){
 function closeRunInsights(){
     els.insightsBackdrop.classList.add('hide');
 }
+    const PUBLIC_VAPID_KEY = 'BPvi7D71F37GOjQmYCyOarr0UdFJFSGjCSIBtp1FsQj2W5exPB2zAWjkiw1GumniJzTFJoGD2V1sdZKFg_QmjZw';
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.error('SW Registration Failed', err));
+            });
+        }
+
+        document.getElementById('push-btn').addEventListener('click', async () => {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: PUBLIC_VAPID_KEY
+                });
+                console.log('Subscription Object:', JSON.stringify(subscription));
+                alert('Notifications Enabled! Check console for subscription object.');
+            }
+        });
 </script>
 </body>
 </html>
